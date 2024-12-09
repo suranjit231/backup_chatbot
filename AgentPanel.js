@@ -38,13 +38,23 @@ const AgentPanel = () => {
             setChats(prevChats => {
                 const newChats = new Map(prevChats);
                 const chat = newChats.get(data.userId) || { messages: [] };
-                chat.messages = [...chat.messages, {
-                    sender: 'user',
-                    content: data.message,
-                    timestamp: data.timestamp
-                }];
-                chat.unread = activeChat !== data.userId;
-                newChats.set(data.userId, chat);
+                
+                // Check if this message already exists in the chat
+                const messageExists = chat.messages.some(msg => 
+                    msg.content === data.message && 
+                    msg.timestamp === data.timestamp
+                );
+                
+                if (!messageExists) {
+                    chat.messages = [...chat.messages, {
+                        sender: 'user',
+                        content: data.message,
+                        timestamp: data.timestamp
+                    }];
+                    chat.unread = activeChat !== data.userId;
+                    newChats.set(data.userId, chat);
+                }
+                
                 return newChats;
             });
         });
@@ -66,6 +76,8 @@ const AgentPanel = () => {
             newSocket.disconnect();
         };
     }, [agentName]); // Only recreate socket when agentName changes
+
+
 
     // Toggle agent availability
     const toggleAvailability = () => {
@@ -97,6 +109,7 @@ const AgentPanel = () => {
 
     const handleSendMessage = () => {
         if (message.trim() && activeChat && socket) {
+            const timestamp = new Date().toISOString();
             console.log('Agent sending message:', {
                 toUser: activeChat,
                 message: message.trim()
@@ -105,19 +118,30 @@ const AgentPanel = () => {
             // Send message using agent_response event
             socket.emit('agent_response', {
                 userId: activeChat,
-                message: message.trim()
+                message: message.trim(),
+                timestamp: timestamp
             });
 
             // Update local chat state
             setChats(prevChats => {
                 const newChats = new Map(prevChats);
                 const chat = newChats.get(activeChat) || { messages: [] };
-                chat.messages = [...chat.messages, {
-                    sender: 'agent',
-                    content: message.trim(),
-                    timestamp: new Date().toISOString()
-                }];
-                newChats.set(activeChat, chat);
+                
+                // Check if this message already exists
+                const messageExists = chat.messages.some(msg => 
+                    msg.content === message.trim() && 
+                    msg.sender === 'agent'
+                );
+                
+                if (!messageExists) {
+                    chat.messages = [...chat.messages, {
+                        sender: 'agent',
+                        content: message.trim(),
+                        timestamp: timestamp
+                    }];
+                    newChats.set(activeChat, chat);
+                }
+                
                 return newChats;
             });
 
@@ -200,4 +224,3 @@ const AgentPanel = () => {
 };
 
 export default AgentPanel;
-
